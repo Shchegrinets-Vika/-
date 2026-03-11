@@ -1,0 +1,94 @@
+#include <stdio.h>
+#include <stdlib.h>
+#define e 1e-9
+double f(double **m,int n) {
+    double det=1.0,t;
+    double **a=(double **)malloc(n*sizeof(double *));
+    for (int i=0;i<n;i++) {
+        a[i]=(double *)malloc(n*sizeof(double));
+        for (int j=0;j<n;j++) {
+            a[i][j]=m[i][j];
+        }
+    }
+    for (int i=0;i<n;i++) {
+        int mxe=i;
+        for (int k=i+1;k<n;k++) {
+            double ak=a[k][i],b=a[mxe][i];
+            if (ak>=0) {
+                if (b>=0) {
+                    if (ak>b) {
+                      mxe=k;
+                    }
+                } 
+                else {
+                    if (ak>-b) {
+                      mxe=k;
+                    }
+                }
+            } 
+            else {
+                if (b>=0) {
+                    if (-ak>b) {
+                      mxe=k;
+                    }
+                } 
+                else {
+                    if (-ak>-b) {
+                      mxe=k;
+                    }
+                }
+            }
+        }
+        double mxb=a[mxe][i];
+        if (mxb>=0) {
+            if (mxb<e) {
+              return 0.0;
+            }
+        } 
+        else {
+            if (-mxb<e) {
+              return 0.0;
+            }
+        }
+        if (mxe!=i) {
+            for (int j=0;j<n;j++) {
+                t=a[i][j];
+                a[i][j]=a[mxe][j];
+                a[mxe][j]=t;
+            }
+            det=-det;
+        }
+        for (int k=i+1;k<n;k++) {
+            double c=a[k][i]/a[i][i];
+            for (int j=i;j<n;j++) {
+                a[k][j]-=c*a[i][j];
+            }
+        }
+    }
+    for (int i=0;i<n;i++) {
+        det*=a[i][i];
+    }
+    for (int i=0;i<n;i++) {
+      free(a[i]);
+    }
+    free(a);
+    return det;
+}
+int main(void) {
+    int n;
+    scanf("%d",&n);
+    if (n<=0) {
+        printf("unavailable matrix size\n");
+        return 1;
+    }
+    double **m=(double **)malloc(n*sizeof(double *));
+    for (int i=0;i<n;i++) {
+        m[i]=(double *)malloc(n*sizeof(double));
+        for (int j=0;j<n;j++) {
+            scanf("%lf",&m[i][j]);
+        }
+    }
+    double det=f(m,n);
+    printf("%.6f\n",det);
+    return 0;
+}
