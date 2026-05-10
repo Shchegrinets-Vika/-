@@ -1,0 +1,144 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "lodepng.h"
+unsigned char* load_png(const char* filename, unsigned int* width, unsigned int* height)
+{
+    unsigned char* image = NULL;
+    int error = lodepng_decode32_file(&image, width, height, filename);
+    if(error != 0) {
+        printf("error %u: %s\n", error, lodepng_error_text(error));
+    }
+    return (image);
+}
+void write_png(const char* filename, const unsigned char* image, unsigned width, unsigned height)
+{
+    unsigned char* png;
+    long long unsigned int pngsize;
+    int error = lodepng_encode32(&png, &pngsize, image, width, height);
+    if(error == 0) {
+        lodepng_save_file(png, pngsize, filename);
+    } else {
+        printf("error %u: %s\n", error, lodepng_error_text(error));
+    }
+    free(png);
+}
+void contrast(unsigned char *col, int bw_size){
+    for(int i=0; i < bw_size; i++){
+        if(col[i] < 55)
+            col[i] = 0;
+        if(col[i] > 195)
+            col[i] = 255;
+    }
+    return;
+}
+int comparison(unsigned char *p,int s,int i,int n){
+    if (i>=0 && i<s && n>=0 && n<s){
+        if (p[i]-p[n]>20){
+            return 1;
+        }
+    }
+    return 0;
+}
+int contrasted(int bw_size,unsigned char* bw_p,unsigned char* f,int width) {
+    unsigned char v;
+    for (int i=0;i<bw_size;i++){
+        v=(f[i*4]+f[i*4+1]+f[i*4+2])/3;
+        bw_p[i]=v;
+    }
+    for (int i=0;i<bw_size;i++) {
+        if (comparison(bw_p,bw_size,i,i-1)|| comparison(bw_p,bw_size,i,i+1)|| comparison(bw_p,bw_size,i,i-width)|| comparison(bw_p,bw_size,i,i+width)){
+            bw_p[i]=255;
+        }
+    }
+    for (int i=0;i<bw_size;i++) {
+        if (bw_p[i]<255) {
+            bw_p[i]=0;
+        }
+    }
+    return 1;
+}
+int fill(unsigned char* p,unsigned char* ar,int width){
+    int pr[8][2][2]={{{2144,119},{2948,1173}},{{1999,1213},{2252,1267}},{{2202,1272},{2254,1305}},{{2018,1315},{2517,1430}},{{2039,1438},{2572,1666}},{{2134,1739},{2573,2246}},{{2237,2296},{2563,2405}},{{2592,1197},{4474,2575}}};
+    for (int i=0;i<9;i++){
+        int s,k;
+        if (pr[i][0][1]<pr[i][1][1]) {
+            s=pr[i][0][1];
+        }
+        else{
+            s=pr[i][1][1];
+        }
+        if (pr[i][0][1]>pr[i][1][1]) {
+            k=pr[i][0][1];
+        }
+        else{
+            k=pr[i][1][1];
+        }
+        for (int j=pr[i][0][0];j<pr[i][1][0];j++){
+            for (int c=s;c<k;c++){
+                if (p[c*width+j]) {
+                    ar[c*width+j]=255;
+                }
+            }
+        }
+    }
+    return 1;
+}
+int bfs(unsigned char* bw_p,unsigned char* vis,int s,int bw_size,unsigned char* ar,int width) {
+    int *q=(int*)malloc(bw_size*sizeof(int));
+    int fr=0,r=0;
+    q[r++]=s;
+    vis[s]=1;
+    while (fr<r) {
+        int c=q[fr++];
+        int n[]={c+1,c-1,c+width,c-width,c+1+width,c-1+width,c+1-width,c-1-width};
+        int cr=c/width;
+        for (int i=0;i<8;i++) {
+            int n1=n[i];
+            if (n1>=0 && n1<bw_size) {
+                int nr=n/width;
+                if ((nr-cr)>1 || (cr-nr)>1) {
+                } 
+                else {
+                    if (!vis[n] && ar[n]!=0) {
+                        vis[n]=1;
+                        q[r++]=n;
+                    }
+                }
+            }
+        }
+    }
+    free(q);
+    return 0;
+}
+int main(void){
+    const char* filename="photo(1)";
+    unsigned int width,height;
+    int bw_size;
+    unsigned char* f=load_png(filename,&width,&height);
+    if (f==NULL){
+        printf("Problem reading picture from the file %s. Error.\n",filename);
+        return -1;
+    }
+    int cn=0;
+    bw_size=width*height;
+    unsigned char* bw_p=(unsigned char*)calloc(bw_size,sizeof(unsigned char));
+    unsigned char* vis=(unsigned char*)calloc(bw_size,sizeof(unsigned char));
+    unsigned char* t=(unsigned char*)calloc(bw_size,sizeof(unsigned char));
+    contrasted(bw_size,bw_p,f,width);
+    contrast(bw_p,bw_size);
+    fill(bw_p,t,width);
+    for (int i=0;i<bw_size;i++){
+        if (!vis[i] && t[i]!=0){
+            bfs(t,vis,i,bw_size,t,width);
+            cn++;
+        }
+    }
+    printf("%d",cn);
+    free(bw_p);
+    free(vis);
+    free(t);
+    free(f);
+    return 0;
+}
